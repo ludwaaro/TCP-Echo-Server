@@ -10,9 +10,10 @@ Description: 	Project contains an example project utilizing FreeRTOS's support f
 		connect with the set sourceAddress. You should be able to see TCP traffic to and from the 
 		program and your Putty instance in response to user input using Wireshark.
 
-Configuration:	There is one define statement at the top of main.c that should be changed for use on
+Configuration:	There are two define statements at the top of main.c that should be changed for use on
 		your board.
 		sourceAddress:     	An array of integers representing the source IP Address you want to use.
+		listeningPort:		The port number the Cerebot will use to listen for incoming socket requests.
 
 Notes:       	This project expands on the base FreeRTOS project RD1.X from the FreeRTOS.zip file found 
 	     	on Dr. Frenzel's website to utilize the aspects of the FreeRTOS + TCP library supporting

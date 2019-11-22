@@ -20,6 +20,7 @@
 *******************************************************************************/
 
 #define sourceAddress           { 129, 101, 222, 34 }
+#define listeningPort           10000
 
 /* Standard includes. */
 #include <plib.h>
@@ -39,8 +40,9 @@
 /* Set up the processor for the example program. */
 static void prvSetupHardware( void );
 
-/* Simple Task that constantly sends UDP Packets to a predefined address with a delay between each sent packet*/
+/* Task that waits for incoming TCP connections*/
 static void vCreateTCPServerSocket( void *pvParameters );
+/* Task that echos incoming TCP packets*/
 static void prvServerConnectionInstance( void *pvParameters );
 
 /* The MAC address array is not declared const as the MAC address will
@@ -72,9 +74,9 @@ static const uint8_t ucDNSServerAddress[ 4 ] = { 0, 0, 0, 0 };
 int main( void )
 {
     prvSetupHardware();
-    /* Initialise the RTOS's TCP/IP stack.  The tasks that use the network
-    are created in the vApplicationIPNetworkEventHook() hook function
-    below.  The hook function is called when the network connects. */
+    /* Initialize the RTOS's TCP/IP stack. This initializes the MAC and kicks off
+     * the network management task "prvIPTask" which will be managing our network
+     * events */
     FreeRTOS_IPInit( ucIPAddress,
                      ucNetMask,
                      ucGatewayAddress,
@@ -93,7 +95,7 @@ int main( void )
     for( ;; );
     
     /* Will only reach here if there is insufficient heap available to start
-     *  the scheduler. */
+     * the scheduler. */
     return 0;
 }  /* End of main */
 
@@ -110,18 +112,18 @@ static void prvSetupHardware( void )
 {
     chipKIT_PRO_MX7_Setup();
 
-/* Set up PmodSTEM LEDs */
+    /* Set up PmodSTEM LEDs */
     PORTSetPinsDigitalOut(IOPORT_B, SM_LEDS);
     LATBCLR = SM_LEDS;                      /* Clear all SM LED bits */
     
-/* Enable chipKIT Pro MX7 and Cerebot 32MX7ck PHY 
- * (this is essential for using the PHY chip)*/
+    /* Enable chipKIT Pro MX7 and Cerebot 32MX7ck PHY 
+     * (this is essential for using the PHY chip)*/
     TRISACLR = (unsigned int) BIT_6; // Make bit output
     LATASET = (unsigned int) BIT_6;	 // Set output high
     
-/* Enable multi-vector interrupts */
+    /* Enable multi-vector interrupts */
     INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);  /* Do only once */
-    INTEnableInterrupts();   /*Do as needed for global interrupt control */
+    INTEnableInterrupts();   /* Do as needed for global interrupt control */
     portDISABLE_INTERRUPTS();
 } /* End of prvSetupHardware */
 
@@ -194,8 +196,8 @@ static void vCreateTCPServerSocket( void *pvParameters )
                          &xReceiveTimeOut,
                          sizeof( xReceiveTimeOut ) );
 
-    /* Set the listening port to 10000. */
-    xBindAddress.sin_port = ( uint16_t ) 10000;
+    /* Set the listening port. */
+    xBindAddress.sin_port = ( uint16_t ) listeningPort;
     xBindAddress.sin_port = FreeRTOS_htons( xBindAddress.sin_port );
 
     /* Bind the socket to the port that the client RTOS task will send to. */
@@ -214,11 +216,11 @@ static void vCreateTCPServerSocket( void *pvParameters )
         /* Spawn a RTOS task to handle the connection. */
         xTaskCreate( prvServerConnectionInstance,
                      "EchoServer",
-                     2048, //I've increased the memory allocated to the task as I was encountering stack overflow issues
+                     2048, /* I've increased the memory allocated to the task as I was encountering stack overflow issues */
                      ( void * ) xConnectedSocket,
                      tskIDLE_PRIORITY,
                      NULL );
-	vTaskDelete( NULL );
+        vTaskDelete( NULL );
     }
 }
 
@@ -251,7 +253,7 @@ static void prvServerConnectionInstance( void *pvParameters )
 	for( ;; )
 	{
 		/* Zero out the receive array so there is NULL at the end of the string
-		when it is printed out. */
+		 * when it is printed out. */
 		memset( cReceivedString, 0x00, sizeof( cReceivedString ) );
 
 		/* Receive data on the socket. */
@@ -286,7 +288,7 @@ static void prvServerConnectionInstance( void *pvParameters )
 	FreeRTOS_shutdown( xConnectedSocket, FREERTOS_SHUT_RDWR );
 
 	/* Wait for the shutdown to take effect, indicated by FreeRTOS_recv()
-	returning an error. */
+	 * returning an error. */
 	xTimeOnShutdown = xTaskGetTickCount();
 	do
 	{
